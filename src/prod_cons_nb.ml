@@ -10,9 +10,23 @@ end = struct
 
   let make () = Atomic.make []
 
-  let rec push r v = failwith "not implemented"
+  let rec push r v =
+    let lst = Atomic.get r in
+    if Atomic.compare_and_set r lst (v::lst) then ()
+    else begin
+      Domain.cpu_relax ();
+      push r v
+    end
 
-  let rec pop r = failwith "not implemented"
+  let rec pop r =
+    let lst = Atomic.get r in
+    match Atomic.get r with
+    | [] -> None
+    | v::lst' -> if Atomic.compare_and_set r lst lst' then Some v
+    else begin
+      Domain.cpu_relax ();
+      pop r
+    end
 end
 
 let s = Atomic_stack.make ()
